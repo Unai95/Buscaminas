@@ -1,123 +1,80 @@
 fun main() {
-    mostrarBienvenida()
+    println(" ** --BUSCAMINAS-- **")
+    println("D = destapar | B = bandera")
+
+    //Pedimos los datos para crear la partida, tenía que ser personalizable
+
+    val filas = leerEntero("Filas: ")
+    val columnas = leerEntero("Columnas: ")
+    val minas = leerEntero("Minas: ")
 
 
-    val (filas, columnas, minas) = pedirConfiguracion()
-
-    val juego: Buscaminas = try {
-        Buscaminas(filas, columnas, minas)
-    } catch (e: IllegalArgumentException) {
-        println("\n⚠  Error al crear la partida: ${e.message}")
-        return
-    }
-
+    //Creamos el juego con la configuración elegida
+    val juego = Buscaminas(filas, columnas, minas)
 
     while (!juego.juegoTerminado) {
-        println()
         mostrarTablero(juego)
-        procesarTurno(juego)
+
+
+        //Pedimos al usuario que quiere hacer
+        print("Accion (D/B): ")
+        val accion = readLine()!!.uppercase()
+
+        //Posición donde va a actuar
+        val fila = leerEntero("Fila: ")
+        val columna = leerEntero("Columna: ")
+
+
+        //Si pulda D, llamamos a destapar() y si pulsa B llamamos a gestionarBandera()
+        if (accion == "D") {
+            juego.destapar(fila, columna)
+        } else if (accion == "B") {
+            juego.gestionarBandera(fila, columna)
+        }
     }
-
-
-    println()
+    //Cuando termina la partida, muestra el tablero final
     mostrarTablero(juego)
+
+
+    //Mostramos si se gana o pierde
     if (juego.victoria) {
-        println("╔══════════════════════════════╗")
-        println("║  🎉  ¡ENHORABUENA, GANASTE!  ║")
-        println("╚══════════════════════════════╝")
+        println("Has ganado")
     } else {
-        println("╔════════════════════════════════════╗")
-        println("║  💥  ¡BOOM! Pisaste una mina.      ║")
-        println("║       GAME OVER                    ║")
-        println("╚════════════════════════════════════╝")
+        println("Has perdido")
     }
 }
 
-// ── Bienvenida ────────────────────────────────────────────────
-fun mostrarBienvenida() {
-    println("╔══════════════════════════════╗")
-    println("║       B U S C A M I N A S    ║")
-    println("╚══════════════════════════════╝")
-    println()
-    println("Comandos durante la partida:")
-    println("  D  →  Destapar celda")
-    println("  B  →  Colocar / quitar bandera (🚩)")
-    println()
+fun leerEntero(texto: String): Int {
+    print(texto)
+    return readLine()!!.toInt()
 }
-
-
-data class Configuracion(val filas: Int, val columnas: Int, val minas: Int)
-
-fun pedirConfiguracion(): Configuracion {
-    println("──── Configuración de la partida ────")
-    val filas    = leerEntero("Número de filas    (por defecto 9): ",    9)
-    val columnas = leerEntero("Número de columnas (por defecto 9): ",    9)
-    val minas    = leerEntero("Número de minas    (por defecto 10): ", 10)
-    println()
-    return Configuracion(filas, columnas, minas)
-}
-
-fun leerEntero(prompt: String, defecto: Int): Int {
-    print(prompt)
-    return readLine()?.trim()?.toIntOrNull() ?: defecto
-}
-
 
 fun mostrarTablero(juego: Buscaminas) {
-    val tablero = juego.tableroVisible   // lectura permitida
+    val tablero = juego.obtenerTablero()
 
-    // Cabecera de columnas
-    val anchoFila = juego.filas.toString().length          // dígitos para índice de fila
-    val pad = " ".repeat(anchoFila + 2)
-    print(pad)
-    for (c in 0 until juego.columnas) print("%3d".format(c))
+    print("   ")
+    for (c in 0 until juego.columnas) {
+        print("$c ")
+    }
     println()
-    print(pad)
-    println("───".repeat(juego.columnas))
 
-    // Filas
+
+    //Aqui se recorre fila por fila para dibujar el tablero
     for (f in 0 until juego.filas) {
-        print("%${anchoFila}d │".format(f))
+        print("$f  ")
         for (c in 0 until juego.columnas) {
             val celda = tablero[f][c]
-            val simbolo: String = when {
-                celda.tieneBandera            -> " 🚩"
-                celda.estaTapada              -> " . "
-                celda.esMina                  -> " * "
-                celda.minasVecinas == 0       -> "   "
-                else                          -> " ${celda.minasVecinas} "
+            //Elegimos que símbolo se enseña según el estado de la celda
+            val simbolo = when {        //iconos en unicode
+                celda.tieneBandera -> "\uD83D\uDEA9"
+                celda.estaTapada -> "*"
+                celda.esMina -> "\uD83D\uDCA3"
+                celda.minasVecinas == 0 -> " "
+                else -> celda.minasVecinas.toString()
             }
-            print(simbolo)
+
+            print("$simbolo ")
         }
         println()
-    }
-    println()
-
-    val banderasColocadas = tablero.sumBy { fila -> fila.count { it.tieneBandera } }
-    println("  Minas: ${juego.numMinas}  |  Banderas colocadas: $banderasColocadas  |  " +
-            "Restantes: ${juego.numMinas - banderasColocadas}")
-}
-
-
-fun procesarTurno(juego: Buscaminas) {
-    println("────────────────────────────────────")
-    println("Acción  →  [D] Destapar   [B] Bandera")
-
-    val accion = leerAccion()
-    val fila   = leerEntero("  Fila    : ", -1)
-    val col    = leerEntero("  Columna : ", -1)
-
-    when (accion) {
-        'D' -> juego.destapar(fila, col)      // única forma de modificar el tablero
-        'B' -> juego.toggleBandera(fila, col) // única forma de modificar banderas
-    }
-}
-
-fun leerAccion(): Char {
-    while (true) {
-        print("Acción [D/B]: ")
-        val entrada = readLine()?.trim()?.uppercase() ?: ""
-        if (entrada.isNotEmpty() && entrada[0] in listOf('D', 'B')) return entrada[0]
-        println("  ⚠  Escribe D para destapar o B para bandera.")
     }
 }
